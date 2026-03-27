@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محول الصور إلى PDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary-blue: #00d2ff;
+            --dark-bg: #050505;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark-bg);
+            color: white;
+            overflow-x: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* خلفية النجوم المتحركة */
+        .stars-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* الواجهة الرئيسية */
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        }
+
+        h1 {
+            color: var(--primary-blue);
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary-blue);
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            background: rgba(0, 210, 255, 0.1);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            border: none;
+            padding: 12px 25px;
+            color: white;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 1rem;
+        }
+
+        button:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        button.clear-btn {
+            background: transparent;
+            border: 1px solid #ff4b2b;
+            color: #ff4b2b;
+        }
+
+        button.clear-btn:hover {
+            background: #ff4b2b;
+            color: white;
+        }
+
+        /* رسالة النجاح */
+        #toast {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #00d2ff;
+            color: #000;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            transition: 0.5s ease-in-out;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4);
+        }
+
+        #toast.show {
+            top: 30px;
+        }
+
+        .preview-text {
+            font-size: 0.9rem;
+            margin-top: 10px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="stars-container" id="stars"></div>
+
+    <div id="toast">تم التحويل بنجاح ✅</div>
+
+    <div class="container">
+        <h1>محول الصور الذكي</h1>
+        
+        <label for="imageInput" class="upload-area" id="dropZone">
+            <p>اضغط هنا لاختيار الصور</p>
+            <span id="fileCount" class="preview-text">لم يتم اختيار أي صور</span>
+        </label>
+        <input type="file" id="imageInput" multiple accept="image/*">
+
+        <div class="btn-group">
+            <button id="convertBtn" disabled>تحويل إلى PDF</button>
+            <button id="clearBtn" class="clear-btn">مسح</button>
+        </div>
+    </div>
+
+    <script>
+        // توليد النجوم برمجياً
+        const starsContainer = document.getElementById('stars');
+        const starCount = 150;
+
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            const size = Math.random() * 3 + 'px';
+            star.style.width = size;
+            star.style.height = size;
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.setProperty('--duration', Math.random() * 3 + 2 + 's');
+            star.style.animationDelay = Math.random() * 5 + 's';
+            starsContainer.appendChild(star);
+        }
+
+        // منطق العمليات
+        const imageInput = document.getElementById('imageInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const fileCountDisplay = document.getElementById('fileCount');
+        const toast = document.getElementById('toast');
+
+        imageInput.addEventListener('change', () => {
+            const files = imageInput.files;
+            if (files.length > 0) {
+                fileCountDisplay.innerText = `تم اختيار ${files.length} صور`;
+                convertBtn.disabled = false;
+            } else {
+                resetUI();
+            }
+        });
+
+        convertBtn.addEventListener('click', async () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const files = imageInput.files;
+
+            for (let i = 0; i < files.length; i++) {
+                const imgData = await readFileAsDataURL(files[i]);
+                const imgProps = doc.getImageProperties(imgData);
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                if (i > 0) doc.addPage();
+                doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            }
+
+            doc.save('converted_images.pdf');
+            showToast();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            resetUI();
+        });
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function showToast() {
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function resetUI() {
+            imageInput.value = '';
+            fileCountDisplay.innerText = 'لم يتم اختيار أي صور';
+            convertBtn.disabled = true;
+        }
+    </script>
+</body>
+</html>
